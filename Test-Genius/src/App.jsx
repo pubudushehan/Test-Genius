@@ -5,6 +5,7 @@ import Signup from "./Pages/Signup";
 import Quiz from "./Pages/Quiz";
 import Result from "./Pages/Result";
 import Home from "./Pages/Home";
+import SelectQuiz from "./Pages/SelectQuiz";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="signup" element={<Signup />} />
           <Route path="quiz" element={<Quiz />} />
           <Route path="result" element={<Result />} />
+          <Route path="selectquiz" element={<SelectQuiz />} />
         </Routes>
       </Router>
     </>

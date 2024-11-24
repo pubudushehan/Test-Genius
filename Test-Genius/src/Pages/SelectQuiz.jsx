@@ -1,13 +1,13 @@
 import React from "react";
 import NavBar from "../component/NavBar";
 import Footer from "../component/Footer";
-import Sign from "../component/Sign";
+import Select from "../component/Select";
 
 const Signup = () => {
   return (
     <div>
       <NavBar showlogin={false} />
-      <Sign />
+      <Select />
       <Footer />
     </div>
   );
