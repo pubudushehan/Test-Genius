@@ -22,15 +22,17 @@
 
   "dependencies": {
 
+    "firebase": "^11.0.2",
+
+    "flowbite-react": "^0.10.2",
+
+    "framer-motion": "^11.11.17",
+
     "react": "^18.3.1",
 
     "react-dom": "^18.3.1",
 
-    "react-router-dom": "^7.0.1",
-
-    "flowbite-react": "^0.10.2",
-
-    "framer-motion": "^11.0.8"
+    "react-router-dom": "^7.0.1"
 
   },
 
@@ -65,5 +67,4 @@
   }
 
 }
-
 

@@ -1,32 +1,97 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import NavBar from "./NavBar";
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import NavBar from './NavBar';
 
 const Quiz = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(3600);
+  const [startTime] = useState(Date.now());
 
-  // Sample question data - replace with your actual questions
-  const mockQuestion = {
-    question: "What is the primary function of an operating system?",
-    options: [
-      "Managing hardware resources and providing services for computer programs",
-      "Creating documents and spreadsheets",
-      "Browsing the internet",
-      "Playing games",
-      "Running antivirus software"
-    ],
-    correctAnswer: 0
+  const quiz = location.state?.quiz;
+
+  useEffect(() => {
+    if (!quiz) {
+      navigate('/selectquiz');
+    }
+  }, [quiz, navigate]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 0) {
+          clearInterval(timer);
+          handleSubmitQuiz();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleAnswer = (answerIndex) => {
+    const newAnswers = [...selectedAnswers];
+    newAnswers[currentQuestion] = answerIndex;
+    setSelectedAnswers(newAnswers);
   };
 
   const handleNext = () => {
-    // Add your next question logic here
+    if (currentQuestion < quiz.questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
   };
 
   const handlePrevious = () => {
-    // Add your previous question logic here
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
+    }
   };
+
+  const handleSubmitQuiz = () => {
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
+    
+    quiz.questions.forEach((question, index) => {
+      if (selectedAnswers[index] !== undefined) {
+        if (selectedAnswers[index] === question.correctAnswer) {
+          correctAnswers++;
+        } else {
+          incorrectAnswers++;
+        }
+      } else {
+        incorrectAnswers++;
+      }
+    });
+
+    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+
+    navigate('/results', {
+      state: {
+        score: correctAnswers,
+        incorrectCount: incorrectAnswers,
+        totalQuestions: quiz.questions.length,
+        timeSpent,
+        answeredQuestions: selectedAnswers.filter(answer => answer !== undefined).length,
+        userAnswers: selectedAnswers,
+        questions: quiz.questions
+      }
+    });
+  };
+
+  if (!quiz) return null;
+
+  const question = quiz.questions[currentQuestion];
 
   return (
     <div>
@@ -34,131 +99,109 @@ const Quiz = () => {
       <div 
         className="min-h-screen w-full pt-16"
         style={{
-          background: `
-            linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%),
-            url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80') center/cover no-repeat
-          `,
+          background: `linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%)`,
           backgroundAttachment: 'fixed'
         }}
       >
         <div className="container mx-auto px-4 py-8">
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="max-w-4xl mx-auto"
           >
             {/* Quiz Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">ICT Quiz</h1>
-              <div className="w-20 md:w-24 h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 mx-auto mb-4 rounded-full"></div>
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-6 mb-6">
+              <div className="flex justify-between items-center text-white">
+                <div className="text-2xl font-bold">
+                  Question {currentQuestion + 1}/{quiz.questions.length}
+                </div>
+                <div className="text-xl font-semibold">
+                  Time Left: {formatTime(timeLeft)}
+                </div>
+              </div>
             </div>
 
-            {/* Quiz Card */}
-            <motion.div 
-              className="relative backdrop-blur-xl bg-white/10 rounded-2xl shadow-2xl border border-white/20 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent"></div>
-              
-              {/* Question Content */}
-              <div className="relative p-6 md:p-8">
-                {/* Question Number */}
-                <div className="flex justify-between items-center mb-6">
-                  <span className="text-white/80 text-sm">Question {currentQuestion + 1} of 10</span>
-                  <span className="bg-white/10 px-3 py-1 rounded-full text-white/80 text-sm">
-                    Time: 15:00
-                  </span>
-                </div>
+            {/* Question Navigation Buttons */}
+            <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2 mb-6">
+              {quiz.questions.map((_, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCurrentQuestion(index)}
+                  className={`
+                    p-3 rounded-xl font-semibold transition-all duration-200
+                    ${currentQuestion === index 
+                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white' 
+                      : selectedAnswers[index] !== undefined
+                        ? 'bg-emerald-500/50 text-white hover:bg-emerald-500/70'
+                        : 'bg-white/10 text-white/70 hover:bg-white/20'
+                    }
+                    hover:shadow-lg
+                  `}
+                >
+                  {index + 1}
+                </motion.button>
+              ))}
+            </div>
 
-                {/* Question */}
-                <div className="mb-8">
-                  <h2 className="text-xl md:text-2xl font-semibold text-white mb-6">
-                    {mockQuestion.question}
-                  </h2>
+            {/* Question Card */}
+            <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
+              <h2 className="text-2xl font-bold text-white mb-6">
+                {question.question}
+              </h2>
 
-                  {/* Options */}
-                  <div className="space-y-4">
-                    {mockQuestion.options.map((option, index) => (
-                      <motion.button
-                        key={index}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        className="w-full text-left p-4 rounded-lg transition-all duration-200 
-                          bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/30
-                          text-white backdrop-blur-sm group"
-                      >
-                        <span className="inline-block w-8 h-8 mr-3 rounded-full bg-white/10 
-                          text-center leading-8 text-white group-hover:bg-white/20 transition-all duration-200">
-                          {String.fromCharCode(65 + index)}
-                        </span>
-                        {option}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Navigation */}
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                  {/* Previous/Next Buttons */}
-                  <div className="flex gap-4 w-full md:w-auto">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handlePrevious}
-                      className="px-6 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 
-                        transition-all duration-200 backdrop-blur-sm border border-white/20"
-                    >
-                      Previous
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleNext}
-                      className="px-6 py-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 
-                        text-white rounded-lg hover:shadow-lg transition-all duration-200"
-                    >
-                      Next
-                    </motion.button>
-                  </div>
-
-                  {/* Question Navigation Dots */}
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {[...Array(10)].map((_, index) => (
-                      <motion.button
-                        key={index}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center
-                          transition-all duration-200 border border-white/20
-                          ${index === currentQuestion
-                            ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white'
-                            : 'bg-white/10 text-white hover:bg-white/20'
-                          }`}
-                      >
-                        {index + 1}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="mt-8 text-center">
+              <div className="space-y-4">
+                {question.options.map((option, index) => (
                   <motion.button
+                    key={index}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/result')}
-                    className="px-8 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 
-                      text-white rounded-lg hover:shadow-lg transition-all duration-200"
+                    onClick={() => handleAnswer(index)}
+                    className={`w-full p-4 rounded-xl text-left transition-all duration-200 ${
+                      selectedAnswers[currentQuestion] === index
+                        ? 'bg-violet-600 text-white'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                    }`}
+                  >
+                    {option}
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex justify-between mt-8">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handlePrevious}
+                  disabled={currentQuestion === 0}
+                  className="px-6 py-3 bg-white/10 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-all duration-200"
+                >
+                  Previous
+                </motion.button>
+
+                {currentQuestion === quiz.questions.length - 1 ? (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleSubmitQuiz}
+                    className="px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl hover:shadow-lg transition-all duration-200"
                   >
                     Submit Quiz
                   </motion.button>
-                </div>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleNext}
+                    className="px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl hover:shadow-lg transition-all duration-200"
+                  >
+                    Next
+                  </motion.button>
+                )}
               </div>
-            </motion.div>
-
-            {/* Helper Text */}
-            <p className="text-center text-white/60 text-sm mt-6">
-              Click on an option to select your answer
-            </p>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -167,5 +210,3 @@ const Quiz = () => {
 };
 
 export default Quiz;
-
-

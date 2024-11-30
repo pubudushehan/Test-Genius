@@ -10,8 +10,21 @@ import About from "./Pages/About";
 import Contact from "./Pages/Contact";
 import Services from "./Pages/Services";
 import Progress from "./Pages/Progress";
+import Results from "./component/Results";
+import Admin from './Pages/Admin'; 
 
 function App() {
+  // Example API call
+  const fetchQuiz = async () => {
+    try {
+      const response = await fetch('/api/quiz/select');
+      const data = await response.json();
+      // Handle the data
+    } catch (error) {
+      console.error('Error fetching quiz:', error);
+    }
+  };
+
   return (
     <>
       <Router>
@@ -26,6 +39,8 @@ function App() {
           <Route path="contact" element={<Contact />} />
           <Route path="services" element={<Services />} />
           <Route path="progress" element={<Progress />} />
+          <Route path="/results" element={<Results />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </Router>
     </>
