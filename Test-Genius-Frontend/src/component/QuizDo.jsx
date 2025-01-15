@@ -191,10 +191,15 @@ const Quiz = () => {
 
             {/* Question Card */}
             <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
-              <h2 className="text-2xl font-bold text-white mb-6">
-                {question.question}
-              </h2>
+              {/* Question Text */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-white mb-4">
+                  Question {currentQuestion + 1}:
+                </h2>
+                <p className="text-xl text-white">{question.questionText}</p>
+              </div>
 
+              {/* Answer Options */}
               <div className="space-y-4">
                 {question.options.map((option, index) => (
                   <motion.button
@@ -208,6 +213,9 @@ const Quiz = () => {
                         : "bg-white/10 text-white hover:bg-white/20"
                     }`}
                   >
+                    <span className="inline-block w-8 font-semibold">
+                      {index + 1}.
+                    </span>
                     {option}
                   </motion.button>
                 ))}
