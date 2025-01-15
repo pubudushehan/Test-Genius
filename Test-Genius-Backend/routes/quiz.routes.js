@@ -1,38 +1,42 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Quiz = require('../models/quiz.model');
+const adminAuth = require("../middleware/adminAuth");
+const QuizController = require("../controllers/quiz.controller");
+const Quiz = require("../models/quiz.model");
+
+// Admin routes
+router.post("/add", adminAuth, QuizController.createQuiz);
+router.put("/edit/:id", adminAuth, QuizController.updateQuiz);
+router.delete("/delete/:id", adminAuth, QuizController.deleteQuiz);
 
 // Get all quizzes (for admin)
-router.get('/all', async (req, res) => {
-  try {
-    const quizzes = await Quiz.find();
-    res.json(quizzes);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching quizzes' });
-  }
-});
+router.get("/all", QuizController.getAllQuizzes);
 
 // Get quiz by filters (for quiz selection)
-router.get('/select', async (req, res) => {
+router.get("/select", async (req, res) => {
   try {
-    const { language, subject, year, paperType } = req.query;
-    
+    const { medium, subject, year, paperType } = req.query;
+
     const query = {};
-    if (language) query.medium = language; // Note: frontend uses 'language', backend uses 'medium'
+    if (medium) query.medium = medium;
     if (subject) query.subject = subject;
-    if (year) query.year = year;
+    if (year) query.year = parseInt(year);
     if (paperType) query.paperType = paperType;
 
+    console.log("Searching for quiz with query:", query);
+
     const quiz = await Quiz.findOne(query);
-    
+
     if (!quiz) {
-      return res.status(404).json({ message: 'No quiz found with the specified criteria' });
+      return res
+        .status(404)
+        .json({ message: "No quiz found with the specified criteria" });
     }
-    
+
     res.json(quiz);
   } catch (error) {
-    console.error('Error fetching quiz:', error);
-    res.status(500).json({ message: 'Error fetching quiz' });
+    console.error("Error fetching quiz:", error);
+    res.status(500).json({ message: "Error fetching quiz" });
   }
 });
 

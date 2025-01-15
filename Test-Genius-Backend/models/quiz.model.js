@@ -1,35 +1,63 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+
+const questionSchema = new mongoose.Schema({
+  questionText: {
+    type: String,
+    required: true,
+  },
+  options: [
+    {
+      type: String,
+      required: true,
+    },
+  ],
+  correctAnswer: {
+    type: String,
+    required: true,
+  },
+});
 
 const quizSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true
-  },
-  subject: {
-    type: String,
-    required: true
-  },
-  year: {
-    type: String,
-    required: true
-  },
-  paperType: {
-    type: String,
-    required: true
+    required: true,
   },
   medium: {
     type: String,
-    required: true
+    enum: ["Sinhala", "English"],
+    required: true,
   },
-  questions: [{
-    question: String,
-    options: [String],
-    correctAnswer: String
-  }],
+  year: {
+    type: Number,
+    min: 2011,
+    max: 2024,
+    required: true,
+  },
+  subject: {
+    type: String,
+    enum: ["ICT", "BST", "ESFT", "ET"],
+    required: true,
+  },
+  paperType: {
+    type: String,
+    enum: ["Pastpaper", "Model"],
+    required: true,
+  },
+  timePeriod: {
+    type: Number,
+    required: true,
+    min: 1,
+  },
+  questions: [questionSchema],
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-module.exports = mongoose.model('Quiz', quizSchema);
+const Quiz = mongoose.model("Quiz", quizSchema);
+module.exports = Quiz;

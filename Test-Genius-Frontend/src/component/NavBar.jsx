@@ -11,6 +11,7 @@ const Navbar = ({ showlogin = true }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Check if user data exists in localStorage
@@ -43,6 +44,13 @@ const Navbar = ({ showlogin = true }) => {
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
+  }, []);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (user && user.role === "admin") {
+      setIsAdmin(true);
+    }
   }, []);
 
   const fetchUserProgress = async (userId) => {
@@ -185,6 +193,14 @@ const Navbar = ({ showlogin = true }) => {
 
         {/* Login/Profile Button */}
         <div className="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse ml-4">
+          {isLoggedIn && isAdmin && (
+            <button
+              onClick={() => handleNavigation("/admin")}
+              className="text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:shadow-lg focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all duration-200"
+            >
+              Admin
+            </button>
+          )}
           {isLoggedIn ? (
             <div className="relative">
               <motion.button
@@ -225,7 +241,7 @@ const Navbar = ({ showlogin = true }) => {
                   </button>
                   <button
                     onClick={() => {
-                      navigate("/progress");
+                      navigate("#");
                       setIsProfileDropdownOpen(false);
                     }}
                     className="w-full text-left px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"

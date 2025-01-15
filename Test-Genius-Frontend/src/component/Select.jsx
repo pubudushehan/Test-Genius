@@ -1,162 +1,216 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import NavBar from './NavBar';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Select = () => {
   const navigate = useNavigate();
-  const [selectedLanguage, setSelectedLanguage] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
-  const [selectedPaperType, setSelectedPaperType] = useState("");
+  const [filters, setFilters] = useState({
+    medium: "",
+    subject: "",
+    year: "",
+    paperType: "",
+  });
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  const handleStartQuiz = async () => {
-    if (selectedLanguage && selectedSubject && selectedYear && selectedPaperType) {
-      setLoading(true);
-      setError("");
-      
-      try {
-        const response = await fetch(
-          `/api/quiz/select?language=${selectedLanguage}&subject=${selectedSubject}&year=${selectedYear}&paperType=${selectedPaperType}`
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (
+      !filters.medium ||
+      !filters.subject ||
+      !filters.year ||
+      !filters.paperType
+    ) {
+      setError("Please select all fields");
+      return;
+    }
+
+    try {
+      const queryParams = new URLSearchParams(filters).toString();
+      const response = await fetch(`/api/quiz/select?${queryParams}`);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "No quiz found with selected criteria"
         );
-        
-        if (!response.ok) {
-          throw new Error('Quiz not found');
-        }
-        
-        const quizData = await response.json();
-        if (!quizData) {
-          throw new Error('No quiz found with selected criteria');
-        }
-        
-        navigate('/quiz', { state: { quiz: quizData } });
-      } catch (error) {
-        console.error('Error fetching quiz:', error);
-        setError("Failed to load quiz. Please try again.");
-      } finally {
-        setLoading(false);
       }
-    } else {
-      setError("Please select all options before starting the quiz.");
+
+      const quiz = await response.json();
+      navigate("/quiz", { state: { quiz } });
+    } catch (err) {
+      setError(err.message);
+      console.error("Error fetching quiz:", err);
     }
   };
 
   return (
-    <div>
-      <NavBar showlogin={false} />
-      <div 
-        className="min-h-screen w-full pt-16"
-        style={{
-          background: `linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%)`,
-          backgroundAttachment: 'fixed'
-        }}
-      >
-        <div className="container mx-auto px-4 py-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto"
-          >
-            <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
-              <h2 className="text-3xl font-bold text-white mb-8 text-center">
-                Select Quiz Options
-              </h2>
+    <div
+      className="min-h-screen w-full pt-16"
+      style={{
+        background: `linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%)`,
+        backgroundAttachment: "fixed",
+      }}
+    >
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl mx-auto"
+        >
+          <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-8">
+            <h1 className="text-3xl font-bold text-center text-white mb-8">
+              Select Your Quiz
+            </h1>
 
-              {/* Medium Selection */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Medium</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedLanguage("English")}
-                    className={`p-4 rounded-xl text-white text-center transition-all duration-200 ${
-                      selectedLanguage === "English"
-                        ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600'
-                        : 'bg-white/10 hover:bg-white/20'
-                    }`}
-                  >
-                    English
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setSelectedLanguage("Sinhala")}
-                    className={`p-4 rounded-xl text-white text-center transition-all duration-200 ${
-                      selectedLanguage === "Sinhala"
-                        ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600'
-                        : 'bg-white/10 hover:bg-white/20'
-                    }`}
-                  >
-                    සිංහල
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* Subject Selection */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Subject</h3>
-                <select 
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  className="w-full p-4 rounded-xl bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">Select Subject</option>
-                  <option value="ICT">ICT</option>
-                </select>
-              </div>
-
-              {/* Year Selection */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Year</h3>
-                <select 
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="w-full p-4 rounded-xl bg-white/10 text-white border border-white/20 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                >
-                  <option value="">Select Year</option>
-                  <option value="2024">2024</option>
-                </select>
-              </div>
-
-              {/* Paper Type Selection */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Paper Type</h3>
-                <motion.button
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <motion.div
                   whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedPaperType("MCQ")}
-                  className={`w-full p-4 rounded-xl text-white text-center transition-all duration-200 ${
-                    selectedPaperType === "MCQ"
-                      ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600'
-                      : 'bg-white/10 hover:bg-white/20'
-                  }`}
+                  className="transition-all duration-200"
                 >
-                  MCQ
-                </motion.button>
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Medium
+                  </label>
+                  <select
+                    name="medium"
+                    value={filters.medium}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-white/40 focus:border-transparent backdrop-blur-xl transition-all duration-200"
+                  >
+                    <option value="" className="text-gray-800">
+                      Select Medium
+                    </option>
+                    <option value="Sinhala" className="text-gray-800">
+                      Sinhala
+                    </option>
+                    <option value="English" className="text-gray-800">
+                      English
+                    </option>
+                  </select>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="transition-all duration-200"
+                >
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Subject
+                  </label>
+                  <select
+                    name="subject"
+                    value={filters.subject}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-white/40 focus:border-transparent backdrop-blur-xl transition-all duration-200"
+                  >
+                    <option value="" className="text-gray-800">
+                      Select Subject
+                    </option>
+                    <option value="ICT" className="text-gray-800">
+                      ICT
+                    </option>
+                    <option value="BST" className="text-gray-800">
+                      BST
+                    </option>
+                    <option value="ESFT" className="text-gray-800">
+                      ESFT
+                    </option>
+                    <option value="ET" className="text-gray-800">
+                      ET
+                    </option>
+                  </select>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="transition-all duration-200"
+                >
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Year
+                  </label>
+                  <select
+                    name="year"
+                    value={filters.year}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-white/40 focus:border-transparent backdrop-blur-xl transition-all duration-200"
+                  >
+                    <option value="" className="text-gray-800">
+                      Select Year
+                    </option>
+                    {Array.from({ length: 14 }, (_, i) => 2024 - i).map(
+                      (year) => (
+                        <option
+                          key={year}
+                          value={year}
+                          className="text-gray-800"
+                        >
+                          {year}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </motion.div>
+
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  className="transition-all duration-200"
+                >
+                  <label className="block text-white text-sm font-medium mb-2">
+                    Paper Type
+                  </label>
+                  <select
+                    name="paperType"
+                    value={filters.paperType}
+                    onChange={handleFilterChange}
+                    className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-white/40 focus:border-transparent backdrop-blur-xl transition-all duration-200"
+                  >
+                    <option value="" className="text-gray-800">
+                      Select Paper Type
+                    </option>
+                    <option value="Pastpaper" className="text-gray-800">
+                      Past Paper
+                    </option>
+                    <option value="Model" className="text-gray-800">
+                      Model Paper
+                    </option>
+                  </select>
+                </motion.div>
               </div>
 
               {error && (
-                <div className="text-red-300 text-center mb-6">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-red-300 text-center text-sm mt-4"
+                >
                   {error}
-                </div>
+                </motion.div>
               )}
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleStartQuiz}
-                disabled={loading}
-                className="w-full p-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded-xl 
-                  hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              <motion.div
+                className="text-center mt-8"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                {loading ? 'Loading...' : 'Start Quiz'}
-              </motion.button>
-            </div>
-          </motion.div>
-        </div>
+                <button
+                  type="submit"
+                  className="bg-white/20 hover:bg-white/30 text-white font-semibold px-8 py-3 rounded-xl shadow-lg backdrop-blur-xl border border-white/20 transition-all duration-200"
+                >
+                  Start Quiz
+                </button>
+              </motion.div>
+            </form>
+          </div>
+        </motion.div>
       </div>
     </div>
   );
