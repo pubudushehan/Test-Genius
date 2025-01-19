@@ -94,6 +94,10 @@ exports.updateQuiz = async (req, res) => {
     const { title, medium, year, subject, paperType, timePeriod, questions } =
       req.body;
 
+    // Log the received data for debugging
+    console.log("Updating quiz with data:", req.body);
+
+    // Validate all required fields
     if (
       !title ||
       !medium ||
@@ -103,7 +107,18 @@ exports.updateQuiz = async (req, res) => {
       !timePeriod ||
       !questions
     ) {
-      return res.status(400).json({ message: "All fields are required" });
+      return res.status(400).json({
+        message: "All fields are required",
+        received: {
+          title,
+          medium,
+          year,
+          subject,
+          paperType,
+          timePeriod,
+          questionCount: questions?.length,
+        },
+      });
     }
 
     // Validate questions format
@@ -113,20 +128,48 @@ exports.updateQuiz = async (req, res) => {
         .json({ message: "Quiz must have at least one question" });
     }
 
+    // Validate question format
+    const isValidQuestions = questions.every(
+      (question) =>
+        question.questionText &&
+        Array.isArray(question.options) &&
+        question.options.length > 0 &&
+        question.correctAnswer
+    );
+
+    if (!isValidQuestions) {
+      return res.status(400).json({
+        message:
+          "Invalid question format. Each question must have questionText, options, and correctAnswer",
+      });
+    }
+
     const quiz = await Quiz.findById(req.params.id);
     if (!quiz) {
       return res.status(404).json({ message: "Quiz not found" });
     }
 
-    // Update all fields including questions
-    Object.assign(quiz, req.body);
+    // Update the quiz with the new data
+    quiz.title = title;
+    quiz.medium = medium;
+    quiz.year = year;
+    quiz.subject = subject;
+    quiz.paperType = paperType;
+    quiz.timePeriod = timePeriod;
+    quiz.questions = questions;
     quiz.updatedAt = Date.now();
 
     const updatedQuiz = await quiz.save();
+    console.log("Quiz updated successfully:", updatedQuiz);
     res.json(updatedQuiz);
   } catch (error) {
     console.error("Error updating quiz:", error);
-    res.status(400).json({ message: error.message });
+    res.status(400).json({
+      message: error.message,
+      details: error.errors
+        ? Object.values(error.errors).map((err) => err.message)
+        : undefined,
+    });
   }
 };
 

@@ -196,7 +196,23 @@ const Quiz = () => {
                 <h2 className="text-2xl font-bold text-white mb-4">
                   Question {currentQuestion + 1}:
                 </h2>
-                <p className="text-xl text-white">{question.questionText}</p>
+                <p className="text-xl text-white whitespace-pre-line">
+                  {question.questionText}
+                </p>
+
+                {/* Display question images if any */}
+                {question.images && question.images.length > 0 && (
+                  <div className="mt-4 flex gap-4">
+                    {question.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image.url}
+                        alt={`Question image ${index + 1}`}
+                        className="max-w-xs rounded-lg shadow-lg"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Answer Options */}

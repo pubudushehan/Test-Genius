@@ -23,6 +23,8 @@ const Admin = () => {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [questionImages, setQuestionImages] = useState([]);
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
 
   useEffect(() => {
     fetchQuizzes();
@@ -52,6 +54,15 @@ const Admin = () => {
     setNewQuiz({ ...newQuiz, [name]: value });
   };
 
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + questionImages.length > 2) {
+      setError("Maximum 2 images allowed");
+      return;
+    }
+    setQuestionImages((prev) => [...prev, ...files]);
+  };
+
   const handleAddQuestion = () => {
     if (
       !currentQuestion.questionText ||
@@ -73,15 +84,6 @@ const Admin = () => {
       correctAnswer: "",
     });
     setShowQuestionModal(false);
-  };
-
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...currentQuestion.options];
-    newOptions[index] = value;
-    setCurrentQuestion((prev) => ({
-      ...prev,
-      options: newOptions,
-    }));
   };
 
   const handleAddQuiz = async () => {
@@ -162,6 +164,22 @@ const Admin = () => {
         return;
       }
 
+      // Create a properly formatted quiz object
+      const quizData = {
+        title: newQuiz.title,
+        medium: newQuiz.medium,
+        year: parseInt(newQuiz.year),
+        subject: newQuiz.subject,
+        paperType: newQuiz.paperType,
+        timePeriod: parseInt(newQuiz.timePeriod),
+        questions: newQuiz.questions.map((question) => ({
+          questionText: question.questionText,
+          options: question.options,
+          correctAnswer: question.correctAnswer,
+          images: question.images || [],
+        })),
+      };
+
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/quiz/edit/${editingQuizId}`, {
         method: "PUT",
@@ -169,13 +187,13 @@ const Admin = () => {
           "Content-Type": "application/json",
           Authorization: token,
         },
-        body: JSON.stringify({
-          ...newQuiz,
-          year: parseInt(newQuiz.year),
-        }),
+        body: JSON.stringify(quizData),
       });
 
-      if (!response.ok) throw new Error("Failed to update quiz");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update quiz");
+      }
 
       const updatedQuiz = await response.json();
 
@@ -235,6 +253,58 @@ const Admin = () => {
     }
   };
 
+  const handleEditQuestion = (question) => {
+    setCurrentQuestion({
+      questionText: question.questionText,
+      options: question.options,
+      correctAnswer: question.correctAnswer,
+    });
+    if (question.images && question.images.length > 0) {
+      setQuestionImages(question.images);
+    } else {
+      setQuestionImages([]);
+    }
+    setEditingQuestionId(question._id);
+    setShowQuestionModal(true);
+  };
+
+  const handleRemoveImage = async (imageId, questionId) => {
+    try {
+      const response = await fetch(
+        `/api/quiz/${newQuiz._id}/question/${questionId}/image/${imageId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to remove image");
+      }
+
+      const updatedQuiz = await response.json();
+      setNewQuiz((prev) => ({
+        ...prev,
+        questions: prev.questions.map((q) =>
+          q._id === questionId ? updatedQuiz.question : q
+        ),
+      }));
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleOptionChange = (index, value) => {
+    const newOptions = [...currentQuestion.options];
+    newOptions[index] = value;
+    setCurrentQuestion((prev) => ({
+      ...prev,
+      options: newOptions,
+    }));
+  };
+
   const QuestionsList = () => (
     <div className="mt-4">
       <h3 className="font-semibold mb-2">
@@ -246,8 +316,8 @@ const Admin = () => {
             key={idx}
             className="p-2 bg-gray-50 rounded flex justify-between items-start"
           >
-            <div>
-              <p className="font-medium">
+            <div className="flex-grow">
+              <p className="font-medium whitespace-pre-line">
                 {idx + 1}. {q.questionText}
               </p>
               <div className="ml-4">
@@ -256,17 +326,37 @@ const Admin = () => {
                     key={optIdx}
                     className={opt === q.correctAnswer ? "text-green-600" : ""}
                   >
-                    {String.fromCharCode(65 + optIdx)}. {opt}
+                    {optIdx + 1}. {opt}
                   </p>
                 ))}
               </div>
+              {q.images && q.images.length > 0 && (
+                <div className="mt-2 flex gap-2">
+                  {q.images.map((image, imgIdx) => (
+                    <img
+                      key={imgIdx}
+                      src={image.url}
+                      alt={`Question ${idx + 1} Image ${imgIdx + 1}`}
+                      className="h-20 w-20 object-cover rounded"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => handleRemoveQuestion(idx)}
-              className="text-red-500 hover:text-red-700"
-            >
-              Remove
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleEditQuestion(q)}
+                className="text-blue-500 hover:text-blue-700"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleRemoveQuestion(idx)}
+                className="text-red-500 hover:text-red-700"
+              >
+                Remove
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -296,7 +386,7 @@ const Admin = () => {
     );
 
   return (
-    <div>
+    <div className="relative">
       <NavBar showlogin={false} />
       <div className="min-h-screen bg-gray-100 pt-16">
         <div className="container mx-auto px-4 py-8">
@@ -360,101 +450,109 @@ const Admin = () => {
 
       {/* Add Quiz Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center overflow-y-auto">
-          <div className="bg-white p-6 rounded-lg w-full max-w-2xl m-4">
-            <h2 className="text-2xl font-bold mb-4">Add New Quiz</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                name="title"
-                value={newQuiz.title}
-                onChange={handleInputChange}
-                placeholder="Quiz Title"
-                className="w-full p-2 border rounded"
-              />
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div className="relative min-h-screen flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg w-full max-w-4xl my-8">
+              {" "}
+              {/* Changed from max-w-2xl to max-w-4xl */}
+              <div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-8">
+                {" "}
+                {/* Increased padding from p-6 to p-8 */}
+                <h2 className="text-2xl font-bold mb-6">
+                  {isEditing ? "Edit Quiz" : "Add New Quiz"}
+                </h2>
+                <div className="space-y-6">
+                  {" "}
+                  {/* Increased spacing from space-y-4 */}
+                  <input
+                    type="text"
+                    name="title"
+                    value={newQuiz.title}
+                    onChange={handleInputChange}
+                    placeholder="Quiz Title"
+                    className="w-full p-3 border rounded" /* Increased padding */
+                  />
+                  <div className="grid grid-cols-2 gap-6">
+                    <select
+                      name="medium"
+                      value={newQuiz.medium}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Medium</option>
+                      <option value="Sinhala">Sinhala</option>
+                      <option value="English">English</option>
+                    </select>
 
-              <div className="grid grid-cols-2 gap-4">
-                <select
-                  name="medium"
-                  value={newQuiz.medium}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select Medium</option>
-                  <option value="Sinhala">Sinhala</option>
-                  <option value="English">English</option>
-                </select>
+                    <select
+                      name="subject"
+                      value={newQuiz.subject}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Subject</option>
+                      <option value="ICT">ICT</option>
+                      <option value="BST">BST</option>
+                      <option value="ESFT">ESFT</option>
+                      <option value="ET">ET</option>
+                    </select>
 
-                <select
-                  name="subject"
-                  value={newQuiz.subject}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select Subject</option>
-                  <option value="ICT">ICT</option>
-                  <option value="BST">BST</option>
-                  <option value="ESFT">ESFT</option>
-                  <option value="ET">ET</option>
-                </select>
+                    <input
+                      type="number"
+                      name="year"
+                      min="2011"
+                      max="2024"
+                      value={newQuiz.year}
+                      onChange={handleInputChange}
+                      placeholder="Year"
+                      className="w-full p-2 border rounded"
+                    />
 
-                <input
-                  type="number"
-                  name="year"
-                  min="2011"
-                  max="2024"
-                  value={newQuiz.year}
-                  onChange={handleInputChange}
-                  placeholder="Year"
-                  className="w-full p-2 border rounded"
-                />
+                    <select
+                      name="paperType"
+                      value={newQuiz.paperType}
+                      onChange={handleInputChange}
+                      className="w-full p-2 border rounded"
+                    >
+                      <option value="">Select Paper Type</option>
+                      <option value="Pastpaper">Past Paper</option>
+                      <option value="Model">Model Paper</option>
+                    </select>
 
-                <select
-                  name="paperType"
-                  value={newQuiz.paperType}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Select Paper Type</option>
-                  <option value="Pastpaper">Past Paper</option>
-                  <option value="Model">Model Paper</option>
-                </select>
-
-                <input
-                  type="number"
-                  name="timePeriod"
-                  min="1"
-                  value={newQuiz.timePeriod}
-                  onChange={handleInputChange}
-                  placeholder="Time Period (minutes)"
-                  className="w-full p-2 border rounded"
-                />
-              </div>
-
-              <button
-                onClick={() => setShowQuestionModal(true)}
-                className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Add Question
-              </button>
-
-              <QuestionsList />
-
-              {error && <p className="text-red-500">{error}</p>}
-
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={isEditing ? handleUpdateQuiz : handleAddQuiz}
-                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-                >
-                  {isEditing ? "Update Quiz" : "Save Quiz"}
-                </button>
+                    <input
+                      type="number"
+                      name="timePeriod"
+                      min="1"
+                      value={newQuiz.timePeriod}
+                      onChange={handleInputChange}
+                      placeholder="Time Period (minutes)"
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setShowQuestionModal(true)}
+                    className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  >
+                    Add Question
+                  </button>
+                  <QuestionsList />
+                  {error && <p className="text-red-500">{error}</p>}
+                  <div className="flex justify-end space-x-2 pt-4">
+                    <button
+                      onClick={() => setShowAddModal(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={isEditing ? handleUpdateQuiz : handleAddQuiz}
+                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                      {isEditing ? "Update Quiz" : "Save Quiz"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -463,59 +561,117 @@ const Admin = () => {
 
       {/* Question Modal */}
       {showQuestionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Add Question</h3>
-            <div className="space-y-4">
-              <textarea
-                value={currentQuestion.questionText}
-                onChange={(e) =>
-                  setCurrentQuestion((prev) => ({
-                    ...prev,
-                    questionText: e.target.value,
-                  }))
-                }
-                placeholder="Question Text"
-                className="w-full p-2 border rounded"
-                rows="3"
-              />
-
-              {currentQuestion.options.map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    placeholder={`Option ${index + 1}`}
-                    className="w-full p-2 border rounded"
-                  />
-                  <input
-                    type="radio"
-                    name="correctAnswer"
-                    checked={currentQuestion.correctAnswer === option}
-                    onChange={() =>
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div className="relative min-h-screen flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg w-full max-w-md my-8">
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4">
+                  {currentQuestion.editIndex !== undefined
+                    ? "Edit Question"
+                    : "Add Question"}
+                </h3>
+                <div className="space-y-4">
+                  <textarea
+                    value={currentQuestion.questionText}
+                    onChange={(e) =>
                       setCurrentQuestion((prev) => ({
                         ...prev,
-                        correctAnswer: option,
+                        questionText: e.target.value,
                       }))
                     }
+                    placeholder="Question Text"
+                    className="w-full p-2 border rounded"
+                    rows="3"
                   />
-                </div>
-              ))}
 
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowQuestionModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddQuestion}
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                  Add Question
-                </button>
+                  {currentQuestion.options.map((option, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={option}
+                        onChange={(e) =>
+                          handleOptionChange(index, e.target.value)
+                        }
+                        placeholder={`Option ${index + 1}`}
+                        className="w-full p-2 border rounded"
+                      />
+                      <input
+                        type="radio"
+                        name="correctAnswer"
+                        checked={currentQuestion.correctAnswer === option}
+                        onChange={() =>
+                          setCurrentQuestion((prev) => ({
+                            ...prev,
+                            correctAnswer: option,
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Upload Images (Optional, max 2)
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="mt-1 block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-violet-50 file:text-violet-700
+                        hover:file:bg-violet-100"
+                    />
+                    {questionImages.length > 0 && (
+                      <div className="mt-2 flex gap-2">
+                        {questionImages.map((image, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={
+                                image instanceof File
+                                  ? URL.createObjectURL(image)
+                                  : image.url
+                              }
+                              alt={`Preview ${index + 1}`}
+                              className="h-20 w-20 object-cover rounded"
+                            />
+                            <button
+                              onClick={() => {
+                                setQuestionImages((prev) =>
+                                  prev.filter((_, i) => i !== index)
+                                );
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      onClick={() => setShowQuestionModal(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddQuestion}
+                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      {currentQuestion.editIndex !== undefined
+                        ? "Update Question"
+                        : "Add Question"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

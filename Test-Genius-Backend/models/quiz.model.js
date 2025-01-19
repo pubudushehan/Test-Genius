@@ -15,6 +15,12 @@ const questionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  images: [
+    {
+      url: String,
+      public_id: String,
+    },
+  ],
 });
 
 const quizSchema = new mongoose.Schema({

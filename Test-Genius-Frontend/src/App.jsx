@@ -10,6 +10,7 @@ import About from "./Pages/About";
 import Contact from "./Pages/Contact";
 import Services from "./Pages/Services";
 import Admin from "./Pages/Admin";
+import Profile from "./Pages/UserProfile";
 
 function App() {
   // Example API call
@@ -38,6 +39,7 @@ function App() {
           <Route path="services" element={<Services />} />
           <Route path="result" element={<Result />} />
           <Route path="admin" element={<Admin />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Router>
     </>
