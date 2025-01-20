@@ -1,4 +1,5 @@
 const Quiz = require("../models/quiz.model");
+const cloudinary = require("../config/cloudinary");
 
 // Get all quizzes
 exports.getAllQuizzes = async (req, res) => {

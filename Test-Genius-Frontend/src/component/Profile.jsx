@@ -1,41 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import NavBar from "./NavBar";
 
 const Profile = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    firstName: "John",
+    lastName: "Doe",
   });
-
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
-
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users/profile", {
-        headers: {
-          Authorization: token,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch profile");
-      const data = await response.json();
-      setUser(data);
-      setFormData({
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -45,93 +16,148 @@ const Profile = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users/profile/update", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error("Failed to update profile");
-
-      const updatedUser = await response.json();
-      setUser(updatedUser);
-      setEditing(false);
-    } catch (err) {
-      setError(err.message);
-    }
+    setEditing(false);
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      <NavBar />
+    <div
+      className="min-h-screen w-full"
+      style={{
+        background: `
+          linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%),
+          url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80') center/cover no-repeat
+        `,
+        backgroundAttachment: "fixed",
+      }}
+    >
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white shadow rounded-lg p-6 mb-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">User Profile</h2>
-              <button
-                onClick={() => setEditing(!editing)}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                {editing ? "Cancel" : "Edit Profile"}
-              </button>
-            </div>
-
-            {editing ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">First Name</label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Last Name</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border rounded"
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white/10 backdrop-blur-md shadow-2xl rounded-3xl p-8 border border-white/20">
+            <div className="flex flex-col md:flex-row items-center md:items-start space-y-6 md:space-y-0 md:space-x-8">
+              {/* Avatar Section */}
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white/30 shadow-2xl bg-white/20 backdrop-blur-sm">
+                  <img
+                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                    alt="Profile Avatar"
+                    className="w-full h-full object-cover"
                   />
                 </div>
                 <button
-                  type="submit"
-                  className="w-full py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                  onClick={() => setEditing(!editing)}
+                  className="px-6 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 border border-white/20"
                 >
-                  Save Changes
+                  {editing ? "Cancel" : "Edit Profile"}
                 </button>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-gray-700 mb-2">First Name</label>
-                  <p className="text-gray-900">{user.firstName}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Last Name</label>
-                  <p className="text-gray-900">{user.lastName}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-700 mb-2">Email</label>
-                  <p className="text-gray-900">{user.email}</p>
-                </div>
               </div>
-            )}
+
+              {/* Profile Info Section */}
+              <div className="flex-1">
+                {editing ? (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                      <label className="block text-white/80 text-sm font-medium mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/40 text-white placeholder-white/50 backdrop-blur-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/80 text-sm font-medium mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/40 text-white placeholder-white/50 backdrop-blur-sm"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-all duration-300 shadow-lg hover:shadow-xl border border-white/20"
+                    >
+                      Save Changes
+                    </button>
+                  </form>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-3xl font-bold text-white mb-4">
+                        {formData.firstName} {formData.lastName}
+                      </h1>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <h3 className="text-sm font-medium text-white/60">
+                            Email
+                          </h3>
+                          <p className="text-white">user@example.com</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-white/60">
+                            Member Since
+                          </h3>
+                          <p className="text-white">January 2024</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-white/60">
+                            Quizzes Completed
+                          </h3>
+                          <p className="text-white">24</p>
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-white/60">
+                            Average Score
+                          </h3>
+                          <p className="text-white">85%</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Achievement Badges */}
+                    <div className="mt-8">
+                      <h3 className="text-xl font-semibold text-white mb-4">
+                        Achievements
+                      </h3>
+                      <div className="flex space-x-6">
+                        <div className="flex flex-col items-center">
+                          <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-lg hover:transform hover:scale-110 transition-all duration-300">
+                            <span className="text-3xl">🏆</span>
+                          </div>
+                          <span className="text-sm text-white/80 mt-2">
+                            Top Score
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-lg hover:transform hover:scale-110 transition-all duration-300">
+                            <span className="text-3xl">⭐</span>
+                          </div>
+                          <span className="text-sm text-white/80 mt-2">
+                            Expert
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-lg hover:transform hover:scale-110 transition-all duration-300">
+                            <span className="text-3xl">🎯</span>
+                          </div>
+                          <span className="text-sm text-white/80 mt-2">
+                            Accurate
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

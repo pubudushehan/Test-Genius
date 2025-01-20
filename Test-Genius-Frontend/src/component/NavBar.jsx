@@ -114,17 +114,14 @@ const Navbar = ({ showlogin = true }) => {
                 </motion.button>
 
                 {isProfileDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50">
-                    <div className="px-4 py-2 text-sm text-gray-500 border-b">
-                      {userData?.email}
-                    </div>
+                  <div className="absolute right-0 mt-2 w-48 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg shadow-2xl py-2 z-50 border border-white/20 backdrop-blur-sm">
                     {isAdmin && (
                       <button
                         onClick={() => {
                           navigate("/admin");
                           setIsProfileDropdownOpen(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50"
+                        className="w-full text-left px-4 py-2 text-white/90 hover:bg-white/10 transition-all duration-200"
                       >
                         Admin Dashboard
                       </button>
@@ -134,7 +131,7 @@ const Navbar = ({ showlogin = true }) => {
                         navigate("/profile");
                         setIsProfileDropdownOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50"
+                      className="w-full text-left px-4 py-2 text-white/90 hover:bg-white/10 transition-all duration-200"
                     >
                       Profile
                     </button>
@@ -143,7 +140,7 @@ const Navbar = ({ showlogin = true }) => {
                         handleLogout();
                         setIsProfileDropdownOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50"
+                      className="w-full text-left px-4 py-2 text-white/90 hover:bg-white/10 transition-all duration-200"
                     >
                       Logout
                     </button>

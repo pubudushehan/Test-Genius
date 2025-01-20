@@ -73,16 +73,38 @@ const Admin = () => {
       return;
     }
 
+    // Create question object with images if they exist
+    const questionToAdd = {
+      ...currentQuestion,
+      images:
+        questionImages.length > 0
+          ? questionImages.map((image) => ({
+              url:
+                image instanceof File ? URL.createObjectURL(image) : image.url,
+              file: image instanceof File ? image : null,
+            }))
+          : [],
+    };
+
+    // Update existing question or add new one
     setNewQuiz((prev) => ({
       ...prev,
-      questions: [...prev.questions, { ...currentQuestion }],
+      questions:
+        editingQuestionId !== null
+          ? prev.questions.map((q, index) =>
+              index === editingQuestionId ? questionToAdd : q
+            )
+          : [...prev.questions, questionToAdd],
     }));
 
+    // Reset form
     setCurrentQuestion({
       questionText: "",
       options: ["", "", "", "", ""],
       correctAnswer: "",
     });
+    setQuestionImages([]);
+    setEditingQuestionId(null); // Reset editing state
     setShowQuestionModal(false);
   };
 
@@ -113,10 +135,25 @@ const Admin = () => {
         body: JSON.stringify({
           ...newQuiz,
           year: parseInt(newQuiz.year),
+          timePeriod: parseInt(newQuiz.timePeriod),
+          questions: newQuiz.questions.map((question) => ({
+            questionText: question.questionText,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            images: question.images
+              ? question.images.map((img) => ({
+                  url: img.url,
+                  file: img.file,
+                }))
+              : [],
+          })),
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to create quiz");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create quiz");
+      }
 
       const createdQuiz = await response.json();
       console.log("Created quiz:", createdQuiz);
@@ -132,6 +169,7 @@ const Admin = () => {
         timePeriod: 60,
         questions: [],
       });
+      setError(null);
     } catch (err) {
       setError(err.message);
       console.error("Error creating quiz:", err);
@@ -253,18 +291,20 @@ const Admin = () => {
     }
   };
 
-  const handleEditQuestion = (question) => {
+  const handleEditQuestion = (question, index) => {
     setCurrentQuestion({
       questionText: question.questionText,
       options: question.options,
       correctAnswer: question.correctAnswer,
     });
+
     if (question.images && question.images.length > 0) {
       setQuestionImages(question.images);
     } else {
       setQuestionImages([]);
     }
-    setEditingQuestionId(question._id);
+
+    setEditingQuestionId(index); // Store the index of the question being edited
     setShowQuestionModal(true);
   };
 
@@ -345,7 +385,7 @@ const Admin = () => {
             </div>
             <div className="flex space-x-2">
               <button
-                onClick={() => handleEditQuestion(q)}
+                onClick={() => handleEditQuestion(q, idx)}
                 className="text-blue-500 hover:text-blue-700"
               >
                 Edit
@@ -388,15 +428,24 @@ const Admin = () => {
   return (
     <div className="relative">
       <NavBar showlogin={false} />
-      <div className="min-h-screen bg-gray-100 pt-16">
+      <div
+        className="min-h-screen w-full"
+        style={{
+          background: `
+          linear-gradient(135deg, rgba(124, 58, 237, 0.95) 0%, rgba(219, 39, 119, 0.85) 100%),
+          url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80') center/cover no-repeat
+        `,
+          backgroundAttachment: "fixed",
+        }}
+      >
         <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">
+          <div className="flex flex-col items-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-6 text-center">
               Quiz Management
             </h1>
             <button
               onClick={handleAddNew}
-              className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              className="bg-gradient-to-r from-purple-600 to-purple-800 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-purple-900 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
               Add New Quiz
             </button>
@@ -407,39 +456,38 @@ const Admin = () => {
               quizzes.map((quiz) => (
                 <div
                   key={quiz._id}
-                  className="bg-white rounded-lg shadow-md p-6"
+                  className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-sm rounded-3xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 border border-blue-200/20"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">
+                  <div className="flex flex-col">
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="text-2xl font-bold text-blue-50">
                         {quiz.subject}
                       </h2>
-                      <p className="text-gray-600">
-                        {quiz.language} - {quiz.year}
-                      </p>
+                      <span className="text-blue-100 text-sm font-medium">
+                        {quiz.paperType}
+                      </span>
                     </div>
-                    <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                      {quiz.paperType}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-sm text-gray-600">
-                      {quiz.questions?.length || 0} questions
-                    </span>
-                    <div className="space-x-2">
-                      <button
-                        onClick={() => handleEdit(quiz)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(quiz._id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
-                      >
-                        Delete
-                      </button>
+                    <p className="text-blue-100/90 mb-4">
+                      {quiz.medium} - {quiz.year}
+                    </p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-100/80">
+                        {quiz.questions?.length || 0} questions
+                      </span>
+                      <div className="space-x-4">
+                        <button
+                          onClick={() => handleEdit(quiz)}
+                          className="text-blue-100 hover:text-blue-200 font-medium transition-colors duration-300"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(quiz._id)}
+                          className="text-red-300 hover:text-red-200 font-medium transition-colors duration-300"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -451,51 +499,61 @@ const Admin = () => {
       {/* Add Quiz Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className="relative min-h-screen flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-lg w-full max-w-4xl my-8">
-              {" "}
-              {/* Changed from max-w-2xl to max-w-4xl */}
+            <div className="relative bg-gradient-to-br from-blue-500/10 to-indigo-500/10 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-4xl my-8 border border-blue-200/20">
               <div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-8">
-                {" "}
-                {/* Increased padding from p-6 to p-8 */}
-                <h2 className="text-2xl font-bold mb-6">
+                <h2 className="text-2xl font-bold mb-6 text-center text-blue-50">
                   {isEditing ? "Edit Quiz" : "Add New Quiz"}
                 </h2>
                 <div className="space-y-6">
-                  {" "}
-                  {/* Increased spacing from space-y-4 */}
                   <input
                     type="text"
                     name="title"
                     value={newQuiz.title}
                     onChange={handleInputChange}
                     placeholder="Quiz Title"
-                    className="w-full p-3 border rounded" /* Increased padding */
+                    className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                   />
                   <div className="grid grid-cols-2 gap-6">
                     <select
                       name="medium"
                       value={newQuiz.medium}
                       onChange={handleInputChange}
-                      className="w-full p-2 border rounded"
+                      className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     >
-                      <option value="">Select Medium</option>
-                      <option value="Sinhala">Sinhala</option>
-                      <option value="English">English</option>
+                      <option value="" className="bg-gray-800">
+                        Select Medium
+                      </option>
+                      <option value="Sinhala" className="bg-gray-800">
+                        Sinhala
+                      </option>
+                      <option value="English" className="bg-gray-800">
+                        English
+                      </option>
                     </select>
 
                     <select
                       name="subject"
                       value={newQuiz.subject}
                       onChange={handleInputChange}
-                      className="w-full p-2 border rounded"
+                      className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     >
-                      <option value="">Select Subject</option>
-                      <option value="ICT">ICT</option>
-                      <option value="BST">BST</option>
-                      <option value="ESFT">ESFT</option>
-                      <option value="ET">ET</option>
+                      <option value="" className="bg-gray-800">
+                        Select Subject
+                      </option>
+                      <option value="ICT" className="bg-gray-800">
+                        ICT
+                      </option>
+                      <option value="BST" className="bg-gray-800">
+                        BST
+                      </option>
+                      <option value="ESFT" className="bg-gray-800">
+                        ESFT
+                      </option>
+                      <option value="ET" className="bg-gray-800">
+                        ET
+                      </option>
                     </select>
 
                     <input
@@ -506,18 +564,24 @@ const Admin = () => {
                       value={newQuiz.year}
                       onChange={handleInputChange}
                       placeholder="Year"
-                      className="w-full p-2 border rounded"
+                      className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     />
 
                     <select
                       name="paperType"
                       value={newQuiz.paperType}
                       onChange={handleInputChange}
-                      className="w-full p-2 border rounded"
+                      className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     >
-                      <option value="">Select Paper Type</option>
-                      <option value="Pastpaper">Past Paper</option>
-                      <option value="Model">Model Paper</option>
+                      <option value="" className="bg-gray-800">
+                        Select Paper Type
+                      </option>
+                      <option value="Pastpaper" className="bg-gray-800">
+                        Past Paper
+                      </option>
+                      <option value="Model" className="bg-gray-800">
+                        Model Paper
+                      </option>
                     </select>
 
                     <input
@@ -527,27 +591,27 @@ const Admin = () => {
                       value={newQuiz.timePeriod}
                       onChange={handleInputChange}
                       placeholder="Time Period (minutes)"
-                      className="w-full p-2 border rounded"
+                      className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     />
                   </div>
                   <button
                     onClick={() => setShowQuestionModal(true)}
-                    className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    className="w-full p-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg"
                   >
                     Add Question
                   </button>
                   <QuestionsList />
-                  {error && <p className="text-red-500">{error}</p>}
-                  <div className="flex justify-end space-x-2 pt-4">
+                  {error && <p className="text-red-300">{error}</p>}
+                  <div className="flex justify-end space-x-3 pt-4">
                     <button
                       onClick={() => setShowAddModal(false)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      className="px-6 py-2.5 text-blue-100 bg-white/10 rounded-lg hover:bg-white/20 transition-all duration-300"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={isEditing ? handleUpdateQuiz : handleAddQuiz}
-                      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg"
                     >
                       {isEditing ? "Update Quiz" : "Save Quiz"}
                     </button>
@@ -562,12 +626,12 @@ const Admin = () => {
       {/* Question Modal */}
       {showQuestionModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black bg-opacity-50"></div>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className="relative min-h-screen flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-lg w-full max-w-md my-8">
-              <div className="p-6">
-                <h3 className="text-xl font-bold mb-4">
-                  {currentQuestion.editIndex !== undefined
+            <div className="relative bg-gradient-to-br from-blue-500/10 to-indigo-500/10 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-4xl my-8 border border-blue-200/20">
+              <div className="p-8">
+                <h3 className="text-2xl font-bold mb-6 text-center text-blue-50">
+                  {editingQuestionId !== null
                     ? "Edit Question"
                     : "Add Question"}
                 </h3>
@@ -581,7 +645,7 @@ const Admin = () => {
                       }))
                     }
                     placeholder="Question Text"
-                    className="w-full p-2 border rounded"
+                    className="w-full p-3 border rounded-lg bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50 placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
                     rows="3"
                   />
 
@@ -655,18 +719,18 @@ const Admin = () => {
                     )}
                   </div>
 
-                  <div className="flex justify-end space-x-2">
+                  <div className="flex justify-end space-x-3 mt-6">
                     <button
                       onClick={() => setShowQuestionModal(false)}
-                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      className="px-6 py-2.5 text-blue-100 bg-white/10 rounded-lg hover:bg-white/20 transition-all duration-300"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleAddQuestion}
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-300 shadow-md hover:shadow-lg"
                     >
-                      {currentQuestion.editIndex !== undefined
+                      {editingQuestionId !== null
                         ? "Update Question"
                         : "Add Question"}
                     </button>
