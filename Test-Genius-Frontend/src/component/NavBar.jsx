@@ -36,7 +36,7 @@ const Navbar = ({ showlogin = true }) => {
     { name: "About", path: "/about" },
     { name: "Services", path: "/services" },
     { name: "Contact", path: "/contact" },
-    { name: "Chat", path: "#", isFuture: true },
+    { name: "Chat", path: "/chat" },
   ];
 
   return (

@@ -4,7 +4,7 @@ const adminAuth = require("../middleware/adminAuth");
 const QuizController = require("../controllers/quiz.controller");
 const Quiz = require("../models/quiz.model");
 const cloudinary = require("../config/cloudinary");
-const upload = require("../middleware/upload");
+const upload = require("../middleware/multer");
 
 // Admin routes
 router.post("/add", adminAuth, QuizController.createQuiz);

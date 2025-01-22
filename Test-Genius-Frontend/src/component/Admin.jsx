@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import NavBar from "../component/NavBar";
+import { apiConfig } from "../config/apiConfig";
+import { useNavigate } from "react-router-dom";
+import { refreshToken } from "../utils/auth";
 
 const Admin = () => {
+  const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
