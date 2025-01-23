@@ -12,12 +12,19 @@ const Quiz = () => {
   const [timeLeft, setTimeLeft] = useState(3600);
   const [startTime] = useState(Date.now());
 
-  const quiz = location.state?.quiz;
+  // Get quiz data either from location state or from selectedQuiz
+  const quiz = location.state?.selectedQuiz || location.state?.quiz;
 
   useEffect(() => {
     if (!quiz) {
       navigate("/selectquiz");
+      return;
     }
+
+    // Reset selected answers when retrying quiz
+    setSelectedAnswers([]);
+    setCurrentQuestion(0);
+    setTimeLeft(3600); // Reset timer
   }, [quiz, navigate]);
 
   useEffect(() => {
@@ -60,75 +67,44 @@ const Quiz = () => {
   };
 
   const handleSubmitQuiz = async () => {
-    let correctAnswers = 0;
-    let incorrectAnswers = 0;
-    const answers = [];
+    const endTime = Date.now();
+    const timeTaken = Math.floor((endTime - startTime) / 1000);
 
-    quiz.questions.forEach((question, index) => {
-      const isCorrect = selectedAnswers[index] === question.correctAnswer;
-      answers.push({
-        questionId: question.id,
-        selectedAnswer: selectedAnswers[index],
-        isCorrect,
-      });
+    // Calculate score and answers
+    let correctCount = 0;
+    const answers = quiz.questions.map((question, index) => {
+      // Check if the selected answer matches the correct answer index
+      const selectedOption = question.options[selectedAnswers[index]];
+      const isCorrect = selectedOption === question.correctAnswer;
 
-      if (selectedAnswers[index] !== undefined) {
-        if (isCorrect) {
-          correctAnswers++;
-        } else {
-          incorrectAnswers++;
-        }
-      } else {
-        incorrectAnswers++;
+      if (isCorrect) {
+        correctCount++;
       }
+
+      return {
+        question: question.questionText,
+        userAnswer: selectedOption,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+      };
     });
 
-    const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-    const user = JSON.parse(localStorage.getItem("user"));
+    const totalQuestions = quiz.questions.length;
+    const incorrectCount = totalQuestions - correctCount;
+    const percentage = Math.round((correctCount / totalQuestions) * 100);
 
-    // Save progress to backend
-    if (user) {
-      try {
-        const response = await fetch(
-          `${apiConfig.baseURL}/api/users/${user.uid}/quiz-attempt`,
-          {
-            method: "POST",
-            headers: {
-              ...apiConfig.headers,
-            },
-            credentials: "include",
-            body: JSON.stringify({
-              quizId: quiz._id,
-              subject: quiz.subject,
-              chapter: quiz.chapter,
-              score: correctAnswers,
-              totalQuestions: quiz.questions.length,
-              timeSpent: formatTime(timeSpent),
-              answers,
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to save quiz progress");
-        }
-      } catch (error) {
-        console.error("Error saving progress:", error);
-      }
-    }
-
+    // Navigate to results with all necessary data
     navigate("/result", {
       state: {
-        score: correctAnswers,
-        incorrectCount: incorrectAnswers,
-        totalQuestions: quiz.questions.length,
-        timeSpent,
-        answeredQuestions: selectedAnswers.filter(
-          (answer) => answer !== undefined
-        ).length,
-        userAnswers: selectedAnswers,
-        questions: quiz.questions,
+        score: correctCount,
+        incorrectCount,
+        answers,
+        totalQuestions,
+        percentage,
+        quizData: quiz,
+        timeTaken,
       },
+      replace: true,
     });
   };
 
@@ -196,7 +172,23 @@ const Quiz = () => {
                 <h2 className="text-2xl font-bold text-white mb-4">
                   Question {currentQuestion + 1}:
                 </h2>
-                <p className="text-xl text-white">{question.questionText}</p>
+                <p className="text-xl text-white whitespace-pre-line">
+                  {question.questionText}
+                </p>
+
+                {/* Display question images if any */}
+                {question.images && question.images.length > 0 && (
+                  <div className="mt-4 flex gap-4">
+                    {question.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image.url}
+                        alt={`Question image ${index + 1}`}
+                        className="max-w-xs rounded-lg shadow-lg"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Answer Options */}

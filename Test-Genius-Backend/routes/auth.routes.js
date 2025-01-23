@@ -67,7 +67,7 @@ router.post("/register", async (req, res) => {
       { userId: user._id },
       process.env.JWT_SECRET || "fallback_secret",
       {
-        expiresIn: "24h",
+        expiresIn: "7d",
       }
     );
 
@@ -132,9 +132,12 @@ router.post("/login", async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      {
+        userId: user._id,
+        role: user.role || "user", // Make sure role is included
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     res.json({
@@ -190,6 +193,32 @@ router.post("/google-auth", async (req, res) => {
   } catch (error) {
     console.error("Google auth error:", error);
     res.status(500).json({ message: "Error with Google authentication" });
+  }
+});
+
+// Add this new refresh token route
+router.post("/refresh-token", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    // Verify the existing token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Generate new token
+    const newToken = jwt.sign(
+      { userId: decoded.userId, role: decoded.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ token: newToken });
+  } catch (error) {
+    console.error("Token refresh error:", error);
+    res.status(401).json({ message: "Invalid or expired token" });
   }
 });
 

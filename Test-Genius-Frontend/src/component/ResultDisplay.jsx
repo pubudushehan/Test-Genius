@@ -6,25 +6,42 @@ import NavBar from "./NavBar";
 const Result = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { score, answers, totalQuestions = 10 } = location.state || {};
-
-  const correctCount = score || 0;
-  const incorrectCount = totalQuestions - correctCount;
-  const percentage = Math.round((correctCount / totalQuestions) * 100);
+  const {
+    score,
+    incorrectCount,
+    answers,
+    totalQuestions,
+    percentage,
+    quizData,
+    timeTaken,
+  } = location.state || {};
 
   const getGrade = (percentage) => {
-    if (percentage >= 90) return { grade: "A+", color: "text-emerald-400" };
-    if (percentage >= 80) return { grade: "A", color: "text-emerald-400" };
-    if (percentage >= 70) return { grade: "B", color: "text-blue-400" };
-    if (percentage >= 60) return { grade: "C", color: "text-yellow-400" };
-    if (percentage >= 50) return { grade: "S", color: "text-orange-400" };
+    if (percentage >= 85) return { grade: "A+", color: "text-emerald-400" };
+    if (percentage >= 75) return { grade: "A", color: "text-emerald-400" };
+    if (percentage >= 65) return { grade: "B", color: "text-blue-400" };
+    if (percentage >= 55) return { grade: "C", color: "text-yellow-400" };
+    if (percentage >= 45) return { grade: "S", color: "text-orange-400" };
     return { grade: "F", color: "text-red-400" };
   };
 
-  const { grade, color } = getGrade(percentage);
+  const { grade, color } = getGrade(percentage || 0);
+
+  // Format time taken
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
 
   const handleReAttempt = () => {
-    navigate("/quiz");
+    navigate("/quiz", {
+      state: {
+        selectedQuiz: quizData,
+        fromResults: true,
+      },
+      replace: true,
+    });
   };
 
   const handleNewQuiz = () => {
@@ -66,7 +83,10 @@ const Result = () => {
                     Quiz Results
                   </h2>
                   <div className="w-20 md:w-24 h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 mx-auto mb-4 rounded-full"></div>
-                  <p className="text-gray-200">Your performance summary</p>
+                  <p className="text-gray-200">
+                    Your performance summary • Time:{" "}
+                    {formatTime(timeTaken || 0)}
+                  </p>
                 </div>
 
                 {/* Score Circle */}
@@ -94,7 +114,9 @@ const Result = () => {
                         className="text-purple-500"
                         strokeWidth="10"
                         strokeDasharray={251.2}
-                        strokeDashoffset={251.2 - (percentage / 100) * 251.2}
+                        strokeDashoffset={
+                          251.2 - ((percentage || 0) / 100) * 251.2
+                        }
                         strokeLinecap="round"
                         stroke="currentColor"
                         fill="transparent"
@@ -105,7 +127,7 @@ const Result = () => {
                     </svg>
                     <div className="text-center">
                       <div className={`text-4xl font-bold ${color}`}>
-                        {percentage}%
+                        {percentage || 0}%
                       </div>
                       <div className={`text-xl ${color}`}>Grade: {grade}</div>
                     </div>
@@ -124,7 +146,7 @@ const Result = () => {
                       Correct Answers
                     </div>
                     <div className="text-3xl font-bold text-emerald-400">
-                      {correctCount} / {totalQuestions}
+                      {score || 0} / {totalQuestions || 0}
                     </div>
                   </motion.div>
 
@@ -138,7 +160,7 @@ const Result = () => {
                       Incorrect Answers
                     </div>
                     <div className="text-3xl font-bold text-red-400">
-                      {incorrectCount} / {totalQuestions}
+                      {incorrectCount || 0} / {totalQuestions || 0}
                     </div>
                   </motion.div>
                 </div>

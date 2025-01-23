@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import Profile from "../assets/Pubudu.jpg";
+import Profile from "../assets/profile .webp";
 
 const Aboutme = () => {
   const navigate = useNavigate();
@@ -46,7 +46,7 @@ const Aboutme = () => {
                     Pubudu Shehan
                   </h2>
                   <p className="text-purple-200 text-xl mb-4">
-                    ICT Lecturer & Web Developer
+                    ICT Teacher & Full-Stack Web Developer
                   </p>
                   <p className="text-gray-200 mb-2">
                     Undergraduate at University of Sri Jayewardenepura
