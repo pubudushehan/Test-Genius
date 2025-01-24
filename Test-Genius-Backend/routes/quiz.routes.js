@@ -12,7 +12,7 @@ router.put("/edit/:id", adminAuth, QuizController.updateQuiz);
 router.delete("/delete/:id", adminAuth, QuizController.deleteQuiz);
 
 // Get all quizzes (for admin)
-router.get("/all", QuizController.getAllQuizzes);
+router.get("/all", adminAuth, QuizController.getAllQuizzes);
 
 // Get quiz by filters (for quiz selection)
 router.get("/select", async (req, res) => {
@@ -150,5 +150,72 @@ router.delete(
     }
   }
 );
+
+// Add this new route for handling image uploads
+router.post("/upload-images", upload.array("images", 2), async (req, res) => {
+  try {
+    const uploadedImages = [];
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        message: "No files were uploaded",
+      });
+    }
+
+    for (const file of req.files) {
+      try {
+        // Create a readable stream from the file buffer
+        const fileStream = Buffer.from(file.buffer);
+
+        // Upload using the file stream
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream(
+              {
+                folder: "quiz-images",
+                resource_type: "auto",
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            )
+            .end(fileStream);
+        });
+
+        uploadedImages.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
+      } catch (uploadError) {
+        console.error(
+          `Error uploading file ${file.originalname}:`,
+          uploadError
+        );
+        return res.status(500).json({
+          message: "Failed to upload image to Cloudinary",
+          error: uploadError.message,
+        });
+      }
+    }
+
+    if (uploadedImages.length === 0) {
+      return res.status(500).json({
+        message: "No images were successfully uploaded",
+      });
+    }
+
+    res.status(200).json({
+      message: "Images uploaded successfully",
+      images: uploadedImages,
+    });
+  } catch (error) {
+    console.error("Image upload error:", error);
+    res.status(500).json({
+      message: "Failed to upload images",
+      error: error.message,
+    });
+  }
+});
 
 module.exports = router;

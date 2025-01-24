@@ -11,10 +11,12 @@ const questionSchema = new mongoose.Schema({
       required: true,
     },
   ],
-  correctAnswer: {
-    type: String,
-    required: true,
-  },
+  correctAnswer: [
+    {
+      type: String,
+      required: true,
+    },
+  ],
   images: [
     {
       url: String,

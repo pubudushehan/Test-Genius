@@ -22,7 +22,7 @@ const Admin = () => {
   const [currentQuestion, setCurrentQuestion] = useState({
     questionText: "",
     options: ["", "", "", "", ""],
-    correctAnswer: "",
+    correctAnswer: [],
   });
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState(null);
@@ -31,18 +31,62 @@ const Admin = () => {
   const [editingQuestionId, setEditingQuestionId] = useState(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     fetchQuizzes();
-  }, []);
+  }, [navigate]);
 
   const fetchQuizzes = async () => {
     try {
-      const response = await fetch("/api/quiz/all");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch("/api/quiz/all", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 403) {
+        // Token might be expired, try to refresh
+        const newToken = await refreshToken();
+        if (!newToken) {
+          navigate("/login");
+          return;
+        }
+
+        // Retry with new token
+        const retryResponse = await fetch("/api/quiz/all", {
+          headers: {
+            Authorization: `Bearer ${newToken}`,
+          },
+        });
+
+        if (!retryResponse.ok) throw new Error("Failed to fetch quizzes");
+        const data = await retryResponse.json();
+        if (!Array.isArray(data)) throw new Error("Invalid data format");
+        setQuizzes(data);
+        return;
+      }
+
       if (!response.ok) throw new Error("Failed to fetch quizzes");
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error("Invalid data format");
       setQuizzes(data);
     } catch (err) {
       setError(err.message);
+      if (
+        err.message.includes("Failed to fetch") ||
+        err.message.includes("403")
+      ) {
+        navigate("/login");
+      }
     } finally {
       setLoading(false);
     }
@@ -67,49 +111,104 @@ const Admin = () => {
     setQuestionImages((prev) => [...prev, ...files]);
   };
 
-  const handleAddQuestion = () => {
-    if (
-      !currentQuestion.questionText ||
-      currentQuestion.options.some((opt) => !opt) ||
-      !currentQuestion.correctAnswer
-    ) {
-      setError("Please fill all question fields");
-      return;
-    }
+  const handleCorrectAnswerChange = (index) => {
+    setCurrentQuestion((prev) => {
+      const currentCorrectAnswers = Array.isArray(prev.correctAnswer)
+        ? prev.correctAnswer
+        : [];
 
-    // Create question object with images if they exist
-    const questionToAdd = {
-      ...currentQuestion,
-      images:
-        questionImages.length > 0
-          ? questionImages.map((image) => ({
-              url:
-                image instanceof File ? URL.createObjectURL(image) : image.url,
-              file: image instanceof File ? image : null,
-            }))
-          : [],
-    };
+      const option = prev.options[index];
+      const updatedCorrectAnswers = currentCorrectAnswers.includes(option)
+        ? currentCorrectAnswers.filter((answer) => answer !== option)
+        : [...currentCorrectAnswers, option];
 
-    // Update existing question or add new one
-    setNewQuiz((prev) => ({
-      ...prev,
-      questions:
-        editingQuestionId !== null
-          ? prev.questions.map((q, index) =>
-              index === editingQuestionId ? questionToAdd : q
-            )
-          : [...prev.questions, questionToAdd],
-    }));
-
-    // Reset form
-    setCurrentQuestion({
-      questionText: "",
-      options: ["", "", "", "", ""],
-      correctAnswer: "",
+      return {
+        ...prev,
+        correctAnswer: updatedCorrectAnswers,
+      };
     });
-    setQuestionImages([]);
-    setEditingQuestionId(null); // Reset editing state
-    setShowQuestionModal(false);
+  };
+
+  const handleAddQuestion = async () => {
+    try {
+      if (
+        !currentQuestion.questionText ||
+        currentQuestion.options.some((opt) => !opt) ||
+        !currentQuestion.correctAnswer ||
+        currentQuestion.correctAnswer.length === 0
+      ) {
+        setError(
+          "Please fill all question fields and select at least one correct answer"
+        );
+        return;
+      }
+
+      let uploadedImages = [];
+
+      // Handle image uploads if there are any
+      if (questionImages.length > 0) {
+        const formData = new FormData();
+        questionImages.forEach((image) => {
+          if (image instanceof File) {
+            formData.append("images", image);
+          }
+        });
+
+        if (formData.has("images")) {
+          try {
+            const uploadResponse = await fetch("/api/quiz/upload-images", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+              body: formData,
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error("Failed to upload images");
+            }
+
+            const uploadResult = await uploadResponse.json();
+            uploadedImages = uploadResult.images || [];
+          } catch (error) {
+            console.error("Image upload error:", error);
+            setError("Failed to upload images");
+            return;
+          }
+        }
+      }
+
+      // Create question object with uploaded image URLs
+      const questionToAdd = {
+        ...currentQuestion,
+        images: uploadedImages,
+      };
+
+      // Update existing question or add new one
+      setNewQuiz((prev) => ({
+        ...prev,
+        questions:
+          editingQuestionId !== null
+            ? prev.questions.map((q, index) =>
+                index === editingQuestionId ? questionToAdd : q
+              )
+            : [...prev.questions, questionToAdd],
+      }));
+
+      // Reset form
+      setCurrentQuestion({
+        questionText: "",
+        options: ["", "", "", "", ""],
+        correctAnswer: [],
+      });
+      setQuestionImages([]);
+      setEditingQuestionId(null);
+      setShowQuestionModal(false);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+      console.error("Error adding question:", err);
+    }
   };
 
   const handleAddQuiz = async () => {
@@ -302,18 +401,47 @@ const Admin = () => {
       correctAnswer: question.correctAnswer,
     });
 
+    // Reset questionImages first
+    setQuestionImages([]);
+
+    // If question has existing images, we need to handle them specially
     if (question.images && question.images.length > 0) {
-      setQuestionImages(question.images);
-    } else {
+      // Store existing image URLs
+      const existingImages = [...question.images];
+
+      // Remove any existing images so new ones can be added
+      // This allows adding new images even when there are existing ones
       setQuestionImages([]);
+
+      // After a brief delay, set the existing images
+      // This prevents issues with the file input
+      setTimeout(() => {
+        setQuestionImages(existingImages);
+      }, 100);
     }
 
-    setEditingQuestionId(index); // Store the index of the question being edited
+    setEditingQuestionId(index);
     setShowQuestionModal(true);
   };
 
   const handleRemoveImage = async (imageId, questionId) => {
     try {
+      // First delete from cloudinary
+      const deleteFromCloudinary = await fetch(
+        `/api/quiz/delete-image/${imageId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: localStorage.getItem("token"),
+          },
+        }
+      );
+
+      if (!deleteFromCloudinary.ok) {
+        throw new Error("Failed to delete image from cloud storage");
+      }
+
+      // Then remove image reference from quiz
       const response = await fetch(
         `/api/quiz/${newQuiz._id}/question/${questionId}/image/${imageId}`,
         {
@@ -325,7 +453,7 @@ const Admin = () => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to remove image");
+        throw new Error("Failed to remove image reference");
       }
 
       const updatedQuiz = await response.json();
@@ -337,6 +465,7 @@ const Admin = () => {
       }));
     } catch (error) {
       setError(error.message);
+      console.error("Error removing image:", error);
     }
   };
 
@@ -351,24 +480,29 @@ const Admin = () => {
 
   const QuestionsList = () => (
     <div className="mt-4">
-      <h3 className="font-semibold mb-2">
+      <h3 className="font-semibold mb-2 text-blue-50">
         Added Questions ({newQuiz.questions.length})
       </h3>
       <div className="space-y-2">
         {newQuiz.questions.map((q, idx) => (
           <div
             key={idx}
-            className="p-2 bg-gray-50 rounded flex justify-between items-start"
+            className="p-4 bg-white/10 backdrop-blur-sm rounded-lg border border-blue-200/20"
           >
             <div className="flex-grow">
-              <p className="font-medium whitespace-pre-line">
+              <p className="font-medium text-blue-50 whitespace-pre-line">
                 {idx + 1}. {q.questionText}
               </p>
-              <div className="ml-4">
+              <div className="ml-4 mt-2">
                 {q.options.map((opt, optIdx) => (
                   <p
                     key={optIdx}
-                    className={opt === q.correctAnswer ? "text-green-600" : ""}
+                    className={`text-sm ${
+                      Array.isArray(q.correctAnswer) &&
+                      q.correctAnswer.includes(opt)
+                        ? "text-green-400 font-medium"
+                        : "text-blue-100"
+                    }`}
                   >
                     {optIdx + 1}. {opt}
                   </p>
@@ -662,18 +796,14 @@ const Admin = () => {
                           handleOptionChange(index, e.target.value)
                         }
                         placeholder={`Option ${index + 1}`}
-                        className="w-full p-2 border rounded"
+                        className="w-full p-2 border rounded bg-white/10 backdrop-blur-sm border-blue-200/20 text-blue-50"
                       />
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="correctAnswer"
-                        checked={currentQuestion.correctAnswer === option}
-                        onChange={() =>
-                          setCurrentQuestion((prev) => ({
-                            ...prev,
-                            correctAnswer: option,
-                          }))
-                        }
+                        checked={currentQuestion.correctAnswer.includes(option)}
+                        onChange={() => handleCorrectAnswerChange(index)}
+                        className="w-4 h-4 text-blue-600"
                       />
                     </div>
                   ))}
