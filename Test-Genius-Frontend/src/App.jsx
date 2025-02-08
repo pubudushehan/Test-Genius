@@ -15,7 +15,7 @@ import Review from "./Pages/Review";
 import Chat from "./Pages/Chat";
 
 function App() {
-  // Example API call
+  //API call
   const fetchQuiz = async () => {
     try {
       const response = await fetch("/api/quiz/select");
