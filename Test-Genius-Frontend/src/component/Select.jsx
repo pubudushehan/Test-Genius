@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { apiConfig } from "../config/apiConfig";
 
 const Select = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const Select = () => {
 
     try {
       const queryParams = new URLSearchParams(filters).toString();
-      const response = await fetch(`/api/quiz/select?${queryParams}`);
+      const response = await fetch(`${apiConfig.baseURL}/api/quiz/select?${queryParams}`);
 
       if (!response.ok) {
         const errorData = await response.json();
